@@ -1,0 +1,194 @@
+{
+  "name": "Facebook Leads to Email & SMS Automation",
+  "blueprint": {
+    "scenarios": [
+      {
+        "name": "Facebook Lead Notification",
+        "description": "Sends automated email and SMS with embedded video to Facebook leads",
+        "modules": [
+          {
+            "id": "1",
+            "name": "Facebook Leads",
+            "type": "trigger",
+            "settings": {
+              "connectionId": "{{connection.facebook}}",
+              "formId": "{{formId}}",
+              "pageId": "{{pageId}}",
+              "limit": "10"
+            }
+          },
+          {
+            "id": "2",
+            "name": "Data Store Search",
+            "type": "action",
+            "settings": {
+              "connectionId": "{{connection.datastore}}",
+              "dataStoreId": "leads",
+              "filter": {
+                "email": "{{1.email}}"
+              }
+            }
+          },
+          {
+            "id": "3",
+            "name": "Control Flow Router",
+            "type": "router",
+            "settings": {
+              "routes": [
+                {
+                  "label": "New Lead",
+                  "condition": "{{isEmpty(2.items)}}"
+                },
+                {
+                  "label": "Existing Lead",
+                  "condition": "{{!isEmpty(2.items)}}"
+                }
+              ]
+            }
+          },
+          {
+            "id": "4",
+            "name": "Send Email",
+            "type": "action",
+            "settings": {
+              "connectionId": "{{connection.email}}",
+              "to": "{{1.email}}",
+              "subject": "Thank you for your interest in {{companyName}}!",
+              "textContent": "Hi {{1.full_name}},\n\nThank you for your interest in our home services! We're excited to help you with your project.\n\nA member of our team will be in touch with you shortly to discuss your needs in more detail.\n\nIn the meantime, you can learn more about our services by visiting our website or calling us at {{companyPhone}}.\n\nBest regards,\n{{ownerName}}\n{{companyName}}",
+              "htmlContent": "<html><body><p>Hi {{1.full_name}},</p><p>Thank you for your interest in our home services! We're excited to help you with your project.</p><p>A member of our team will be in touch with you shortly to discuss your needs in more detail.</p><p>In the meantime, you can learn more about our services by visiting our website or calling us at <strong>{{companyPhone}}</strong>.</p><p>Best regards,<br>{{ownerName}}<br>{{companyName}}</p></body></html>",
+              "contentType": "multipart"
+            },
+            "routing": {
+              "from": "3",
+              "fromRoute": "New Lead"
+            }
+          },
+          {
+            "id": "5",
+            "name": "Send SMS",
+            "type": "action",
+            "settings": {
+              "connectionId": "{{connection.twilio}}",
+              "to": "{{1.phone}}",
+              "body": "Hi {{1.full_name}}! Thanks for your interest in {{companyName}}. Check out this quick video about our services: {{videoLink}}",
+              "mediaUrl": ["{{videoUrl}}"]
+            },
+            "routing": {
+              "from": "4"
+            }
+          },
+          {
+            "id": "6",
+            "name": "Data Store Create/Update",
+            "type": "action",
+            "settings": {
+              "connectionId": "{{connection.datastore}}",
+              "dataStoreId": "leads",
+              "operation": "create",
+              "data": {
+                "email": "{{1.email}}",
+                "name": "{{1.full_name}}",
+                "phone": "{{1.phone}}",
+                "source": "Facebook",
+                "date": "{{now}}",
+                "status": "New Lead"
+              }
+            },
+            "routing": {
+              "from": "5"
+            }
+          },
+          {
+            "id": "7",
+            "name": "Send Notification to Team",
+            "type": "action",
+            "settings": {
+              "connectionId": "{{connection.slack}}",
+              "channel": "leads",
+              "message": "New Facebook lead: {{1.full_name}} ({{1.email}}, {{1.phone}})",
+              "attachments": [
+                {
+                  "title": "Lead Details",
+                  "fields": [
+                    {
+                      "title": "Name",
+                      "value": "{{1.full_name}}",
+                      "short": true
+                    },
+                    {
+                      "title": "Email",
+                      "value": "{{1.email}}",
+                      "short": true
+                    },
+                    {
+                      "title": "Phone",
+                      "value": "{{1.phone}}",
+                      "short": true
+                    },
+                    {
+                      "title": "Source",
+                      "value": "Facebook Lead Form",
+                      "short": true
+                    }
+                  ]
+                }
+              ]
+            },
+            "routing": {
+              "from": "6"
+            }
+          }
+        ],
+        "variables": [
+          {
+            "name": "companyName",
+            "type": "text",
+            "value": "Your Home Service Company"
+          },
+          {
+            "name": "companyPhone",
+            "type": "text",
+            "value": "(555) 123-4567"
+          },
+          {
+            "name": "ownerName",
+            "type": "text",
+            "value": "Your Name"
+          },
+          {
+            "name": "videoUrl",
+            "type": "text",
+            "value": "https://example.com/videos/welcome.mp4"
+          },
+          {
+            "name": "videoLink",
+            "type": "text",
+            "value": "Watch here ⬇️"
+          }
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "id": "facebook",
+        "name": "Facebook"
+      },
+      {
+        "id": "email",
+        "name": "Email Service"
+      },
+      {
+        "id": "twilio",
+        "name": "Twilio"
+      },
+      {
+        "id": "datastore",
+        "name": "Make Datastore"
+      },
+      {
+        "id": "slack",
+        "name": "Slack"
+      }
+    ]
+  }
+}

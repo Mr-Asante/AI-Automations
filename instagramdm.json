@@ -1,0 +1,91 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "interval": 3600
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "operation": "list",
+        "sheetId": "{{GOOGLE_SHEET_ID}}",
+        "range": "A2:D100"
+      },
+      "name": "Fetch User Profiles",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-ssl.bitly.com/v4/shorten",
+        "json": true,
+        "options": {},
+        "body": {
+          "long_url": "={{$json[\"profile_link\"]}}"
+        },
+        "headers": {
+          "Authorization": "Bearer {{BITLY_ACCESS_TOKEN}}"
+        }
+      },
+      "name": "Shorten URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "text": "Hello {{$json[\"name\"]}}, check this out: {{$node[\"Shorten URL\"].json[\"id\"]}}",
+        "recipient": "={{$json[\"username\"]}}"
+      },
+      "name": "Send Instagram DM",
+      "type": "custom.instagramDmSender",
+      "typeVersion": 1,
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://www.instagram.com/{{$json[\"username\"]}}",
+        "path": "/mnt/data/screenshots/{{$json[\"username\"]}}.png"
+      },
+      "name": "Capture Screenshot",
+      "type": "n8n-nodes-base.puppeteer",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "{{GOOGLE_SHEET_ID}}",
+        "range": "E2:E100",
+        "values": "={{$json[\"username\"]}}, {{$node[\"Shorten URL\"].json[\"id\"]}}, {{Date.now()}}"
+      },
+      "name": "Log Sent Message",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [1100, 200]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{"node": "Fetch User Profiles", "type": "main"}]]
+    },
+    "Fetch User Profiles": {
+      "main": [[{"node": "Shorten URL", "type": "main"}]]
+    },
+    "Shorten URL": {
+      "main": [[{"node": "Send Instagram DM", "type": "main"}]]
+    },
+    "Send Instagram DM": {
+      "main": [[{"node": "Capture Screenshot", "type": "main"}]]
+    },
+    "Capture Screenshot": {
+      "main": [[{"node": "Log Sent Message", "type": "main"}]]
+    }
+  }
+}

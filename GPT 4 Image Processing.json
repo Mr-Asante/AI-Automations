@@ -1,0 +1,80 @@
+import json
+
+# Создаем JSON структуру сценария для импорта в Make.com
+make_scenario = {
+    "name": "Business Card Processing",
+    "modules": [
+        {
+            "module": "Google Sheets",
+            "action": "Watch Rows",
+            "parameters": {
+                "spreadsheet": "{{YOUR_SPREADSHEET_ID}}",
+                "sheet": "{{YOUR_SHEET_NAME}}",
+                "triggerColumns": ["Image URL"],
+                "limit": 1
+            }
+        },
+        {
+            "module": "HTTP",
+            "action": "Make a request",
+            "parameters": {
+                "method": "GET",
+                "url": "{{1.output.Image URL}}"
+            }
+        },
+        {
+            "module": "OpenAI",
+            "action": "Process Image",
+            "parameters": {
+                "model": "gpt-4-vision",
+                "image": "{{2.output.body}}",
+                "prompt": "Извлеки информацию из визитной карточки и верни JSON со следующими полями: business_name, contact_name, phone_number, email, website, address"
+            }
+        },
+        {
+            "module": "JSON",
+            "action": "Parse JSON",
+            "parameters": {
+                "data": "{{3.output.response}}"
+            }
+        },
+        {
+            "module": "Google Sheets",
+            "action": "Update a Row",
+            "parameters": {
+                "spreadsheet": "{{YOUR_SPREADSHEET_ID}}",
+                "sheet": "{{YOUR_SHEET_NAME}}",
+                "rowId": "{{1.output.rowId}}",
+                "values": {
+                    "Business Name": "{{4.output.business_name}}",
+                    "Contact Name": "{{4.output.contact_name}}",
+                    "Phone Number": "{{4.output.phone_number}}",
+                    "Email": "{{4.output.email}}",
+                    "Website": "{{4.output.website}}",
+                    "Address": "{{4.output.address}}",
+                    "Status": "Processed"
+                }
+            }
+        },
+        {
+            "module": "Google Sheets",
+            "action": "Add a Row",
+            "parameters": {
+                "spreadsheet": "{{YOUR_LOG_SPREADSHEET_ID}}",
+                "sheet": "{{YOUR_LOG_SHEET_NAME}}",
+                "values": {
+                    "Timestamp": "{{now}}",
+                    "Image URL": "{{1.output.Image URL}}",
+                    "Extracted Data": "{{3.output.response}}"
+                }
+            }
+        }
+    ]
+}
+
+# Сохраняем в JSON файл
+file_path = "/mnt/data/make_business_card_processing.json"
+with open(file_path, "w") as f:
+    json.dump(make_scenario, f, indent=4)
+
+file_path
